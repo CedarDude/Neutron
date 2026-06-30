@@ -45,6 +45,7 @@ $(BUILD_PATH)/%.o: %.c
 
 clean:
 	@echo -e "\033[32mDo Not Open Another Razzle Window t'ill it finished!\033[0m"
+	@printf "\a\a\a"
 	rm -rf $(BUILD_PATH)
 	rm -f Neutron.iso
 
@@ -70,17 +71,34 @@ efi: all
 	    build
 
 ucrt:
+	
 	qemu-system-x86_64 -m 1G -drive if=pflash,format=raw,readonly=on,file=C:\msys64\ucrt64\share\qemu\edk2-x86_64-code.fd -cdrom Neutron.iso -boot d
-
 uciso: clean efi
-	@echo -e "\033[32mDo Not Open Another Razzle Window t'ill it finished!\033[0m"
+	@echo ""
+	@echo ""
+	@echo ""
+	@echo " _   _            _                    "
+	@echo "| \ | | ___ _   _| |_ _ __ ___  _ __  "
+	@echo "|  \| |/ _ \ | | | __| '__/ _ \| '_ \ "
+	@echo "| |\  |  __/ |_| | |_| | | (_) | | | |"
+	@echo "|_| \_|\___|\__,_|\__|_|  \___/|_| |_|"
+	@echo ""
+	@echo "    ____        _ __    __         "
+	@echo "   / __ )__  __(_) /___/ /__  _____"
+	@echo "  / __  / / / / / / __  / _ \/ ___/"
+	@echo " / /_/ / /_/ / / / /_/ /  __/ /    "
+	@echo "/_____/\__,_/_/_/\__,_|\___/_/     "
+	@echo ""
+	@printf "\033[32mDo Not Open Another Razzle Window t'ill it finished!\033[0m\n"
 	@echo ""
 	@echo "!!!!!! WARNING FOR LINUX/WSL USERS !!!!"
 	@echo "!!!!!! You May NOT Have UCRT, SO Have AN OVMF Prepared!"
 	@echo "!!!!!! END !!!!"
-	@echo -e "\033[32mDo Not Open Another Razzle Window t'ill it finished!\033[0m"
+	@echo ""
+	@printf "\033[32mDo Not Open Another Razzle Window t'ill it finished!\033[0m\n"
 	@echo ""
 	$(MAKE) ucrt
+	
 
 re: clean efi
 
