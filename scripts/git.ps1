@@ -10,5 +10,5 @@ $unsafe = Read-Host "Unsafe? (y/n)"
 if ($unsafe -eq 'y') {
     git push --force origin $branch
 } else {
-    git push origin $branch
+    git push --force origin $branch
 }
