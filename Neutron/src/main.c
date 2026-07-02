@@ -2,6 +2,7 @@
 #include <neulib.h>
 #include <NLIB.h>
 #include <kuh.h>
+#include <branding.h>
 
 /*
 Razzle (c) Neutron EFI
@@ -45,11 +46,14 @@ static VOID print2(UINTN n)
 
     printf(L"%d", n);
 }
-EFI_STATUS efi_clock(UINTN X, UINTN Y)
+static UINTN gClockX = 0;
+static UINTN gClockY = 0;
+static BOOLEAN gClockPosSet = FALSE;
+
+EFI_STATUS efi_clock_impl(UINTN X, UINTN Y, BOOLEAN EXITLOOP)
 {
     EFI_TIME Time;
     EFI_STATUS Status;
-    UINTN Index;
 
     while (1)
     {
@@ -59,7 +63,7 @@ EFI_STATUS efi_clock(UINTN X, UINTN Y)
             // A key is waiting! fuck it and exit!
             EFI_INPUT_KEY Key;
             gST->ConIn->ReadKeyStroke(gST->ConIn, &Key);
-            break; 
+            break;
         }
 
         Status = gST->RuntimeServices->GetTime(&Time, NULL);
@@ -81,9 +85,31 @@ EFI_STATUS efi_clock(UINTN X, UINTN Y)
         printf(L"      ");
 
         gST->BootServices->Stall(1000000);
-    }
 
+        if (EXITLOOP)
+            break;
+        else
+            continue;
+    }
     return EFI_SUCCESS;
+}
+
+EFI_STATUS efi_clock_3(UINTN X, UINTN Y, BOOLEAN EXITLOOP)
+{
+    gClockX = X;
+    gClockY = Y;
+    gClockPosSet = TRUE;
+    return efi_clock_impl(X, Y, EXITLOOP);
+}
+
+EFI_STATUS efi_clock_1(BOOLEAN EXITLOOP)
+{
+    if (!gClockPosSet) {
+        gClockX = gST->ConOut->Mode->CursorColumn;
+        gClockY = gST->ConOut->Mode->CursorRow;
+        gClockPosSet = TRUE;
+    }
+    return efi_clock_impl(gClockX, gClockY, EXITLOOP);
 }
 
 EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
@@ -93,18 +119,13 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
     
     SystemTable->ConOut->ClearScreen(SystemTable->ConOut);
     
-    printf(L"Hello, World!\r\n");
+    printf(L"Milestone Completion : %s\r\n", milestone);
+    printfc(EFICOLOR_LIGHTBLUE, L"[");
+    printfc(EFICOLOR_LIGHTGREEN, L"==========");
+    printfc(EFICOLOR_LIGHTBLUE, L"              ]\r\n");
     printf(L"Neutron EFI App Had Loaded!\r\n");
-
-    printfc(
-        EFICOLOR_LIGHTGREEN,
-        L"Color Demo: %d, %x, %s\r\n",
-        123,
-        0xABC,
-        L"Success");
-
+    print_branding_info();
     printf(L"\r\n");
-
     printf(L" _   _            _                    \r\n");
     printf(L"| \\ | |          | |                   \r\n");
     printf(L"|  \\| | ___ _   _| |_ _ __ ___  _ __  \r\n");
@@ -131,7 +152,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
 	efi_detect(SystemTable);
     keyboard_input(cpu_buffer, sizeof(cpu_buffer) / sizeof(cpu_buffer[0]));
 
-    efi_clock(ClockX, ClockY);
+    efi_clock(ClockX, ClockY, TRUE);
 
     // wait for the user to close this disgusting useless shitty efi app.
 	// that waste just your computer potential.

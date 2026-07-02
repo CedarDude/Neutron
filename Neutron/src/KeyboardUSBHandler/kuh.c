@@ -1,6 +1,8 @@
 #include <Uefi.h>
 #include <stdarg.h>
 #include <neulib.h>
+#include <kuh.h>
+#include <rshell.h>
 
 /*
 Razzle (c) 2026 - Neutron EFI Application Project
@@ -94,23 +96,10 @@ void sleep(int seconds)
 
 void efi_detect(EFI_SYSTEM_TABLE *SystemTable)
 {
-    UINTN Index;
-    EFI_INPUT_KEY Key;
-
-    SystemTable->BootServices->WaitForEvent(
-        1,
-        &SystemTable->ConIn->WaitForKey,
-        &Index);
-
-    SystemTable->ConIn->ReadKeyStroke(
-        SystemTable->ConIn,
-        &Key);
-
-    printfc(EFICOLOR_LIGHTBLUE, L"Default Keyboard Layout Given By UEFI : ");// tried to make a test, too fast, now making a delay to see.
-    CHAR16 keyCharInfo[] = L"QWERTY";
-    printf(L"%s\r\n", keyCharInfo);
-    sleep(2);
+    (void)SystemTable;
 }
+
+static BOOLEAN gShellActive = FALSE;
 
 void keyboard_input(CHAR16 *Buffer, UINTN MaxLength) {
     UINTN Index = 0;
@@ -130,8 +119,15 @@ void keyboard_input(CHAR16 *Buffer, UINTN MaxLength) {
         }
 
         if (Key.UnicodeChar == 19 || Key.UnicodeChar == 0x13) {
-            printfc(EFICOLOR_LIGHTRED, L"\r\nGoing into Recovery Shell....\r\n");
-            /* ctrl+s mean control + shell you bitch */
+            if (!gShellActive) {
+                gShellActive = TRUE;
+                gST->ConOut->ClearScreen(gST->ConOut);
+                efi_clock(FALSE);
+                printfc(EFICOLOR_LIGHTRED, L"\r\nGoing into Recovery Shell....\r\n");
+                initshl();
+                gShellActive = FALSE;
+                return;
+            }
             continue;
         }
 
@@ -141,7 +137,7 @@ void keyboard_input(CHAR16 *Buffer, UINTN MaxLength) {
             break;
         }
 
-        /* handle back space so we don't fuck this! */
+        /* handle back space so we don't fuck this! */      
         if (Key.UnicodeChar == L'\b') {
             if (Index > 0) {
                 Index--;
@@ -160,6 +156,8 @@ void keyboard_input(CHAR16 *Buffer, UINTN MaxLength) {
             CHAR16 EchoBuffer[2] = { Key.UnicodeChar, 0 };
             gST->ConOut->OutputString(gST->ConOut, EchoBuffer);
         }
+
+        
     }
 
 }
