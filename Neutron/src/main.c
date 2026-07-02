@@ -1,6 +1,7 @@
 #include <Uefi.h>
 #include <neulib.h>
 #include <NLIB.h>
+#include <kuh.h>
 
 /*
 Razzle (c) Neutron EFI
@@ -127,15 +128,15 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
 	printf(L"CPU Name: %s\r\n", cpu_buffer);
 	UINT64 ram_bytes = get_total_ram();
 	printf(L"Total RAM: %d MB\r\n", ram_bytes / (1024 * 1024));
-    printf(L"Press any key to exit...\r\n");
-	
+	efi_detect(SystemTable);
+    keyboard_input(cpu_buffer, sizeof(cpu_buffer) / sizeof(cpu_buffer[0]));
+
     efi_clock(ClockX, ClockY);
 
     // wait for the user to close this disgusting useless shitty efi app.
 	// that waste just your computer potential.
 	// idk may be useful
 	// but idk if it useful.
-    efi_waitkey(SystemTable);
 
     return EFI_SUCCESS;
 }

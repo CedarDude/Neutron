@@ -60,6 +60,23 @@ static void vprintf_internal(const CHAR16 *fmt, va_list args)
 
     while (*fmt)
     {
+        /* --- Handle Backspace Escape Sequence --- */
+        if (*fmt == L'\b')
+        {
+            UINTN col = gST->ConOut->Mode->CursorColumn;
+            UINTN row = gST->ConOut->Mode->CursorRow;
+            
+            // Only backspace if we aren't already at the start of the line
+            if (col > 0)
+            {
+                gST->ConOut->SetCursorPosition(gST->ConOut, col - 1, row);
+                gST->ConOut->OutputString(gST->ConOut, L" ");
+                gST->ConOut->SetCursorPosition(gST->ConOut, col - 1, row);
+            }
+            fmt++;
+            continue;
+        }
+
         if (*fmt != L'%')
         {
             ch[0] = *fmt;
@@ -115,7 +132,23 @@ static void vprintf_internal(const CHAR16 *fmt, va_list args)
             case L'c':
             {
                 ch[0] = (CHAR16)va_arg(args, UINTN);
-                gST->ConOut->OutputString(gST->ConOut, ch);
+                
+                // Also handle backspace if passed as a %c variable
+                if (ch[0] == L'\b') 
+                {
+                    UINTN col = gST->ConOut->Mode->CursorColumn;
+                    UINTN row = gST->ConOut->Mode->CursorRow;
+                    if (col > 0) 
+                    {
+                        gST->ConOut->SetCursorPosition(gST->ConOut, col - 1, row);
+                        gST->ConOut->OutputString(gST->ConOut, L" ");
+                        gST->ConOut->SetCursorPosition(gST->ConOut, col - 1, row);
+                    }
+                } 
+                else 
+                {
+                    gST->ConOut->OutputString(gST->ConOut, ch);
+                }
                 break;
             }
 
