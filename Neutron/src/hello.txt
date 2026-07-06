@@ -1,0 +1,4 @@
+Put me in /EFI/BOOT/HELLO.TXT!
+abcd
+1234
+cool text

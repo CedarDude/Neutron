@@ -1,9 +1,7 @@
 #include <Uefi.h>
 #include <neulib.h>
 #include <NLIB.h>
-#include <kuh.h>
-#include <branding.h>
-
+#include <rshell.h>
 /*
 Razzle (c) Neutron EFI
 ======
@@ -46,11 +44,13 @@ static VOID print2(UINTN n)
 
     printf(L"%d", n);
 }
-static UINTN gClockX = 0;
-static UINTN gClockY = 0;
-static BOOLEAN gClockPosSet = FALSE;
 
-EFI_STATUS efi_clock_impl(UINTN X, UINTN Y, BOOLEAN EXITLOOP)
+static BOOLEAN IsCtrlSKey(const EFI_INPUT_KEY *Key)
+{
+    return (Key->UnicodeChar == 0x13);
+}
+
+EFI_STATUS efi_clock_impl(UINTN X, UINTN Y)
 {
     EFI_TIME Time;
     EFI_STATUS Status;
@@ -63,7 +63,10 @@ EFI_STATUS efi_clock_impl(UINTN X, UINTN Y, BOOLEAN EXITLOOP)
             // A key is waiting! fuck it and exit!
             EFI_INPUT_KEY Key;
             gST->ConIn->ReadKeyStroke(gST->ConIn, &Key);
-            break;
+            if (IsCtrlSKey(&Key)) {
+                initshl();
+            }
+            break; 
         }
 
         Status = gST->RuntimeServices->GetTime(&Time, NULL);
@@ -85,31 +88,20 @@ EFI_STATUS efi_clock_impl(UINTN X, UINTN Y, BOOLEAN EXITLOOP)
         printf(L"      ");
 
         gST->BootServices->Stall(1000000);
-
-        if (EXITLOOP)
-            break;
-        else
-            continue;
     }
-    return EFI_SUCCESS;
-}
 
-EFI_STATUS efi_clock_3(UINTN X, UINTN Y, BOOLEAN EXITLOOP)
-{
-    gClockX = X;
-    gClockY = Y;
-    gClockPosSet = TRUE;
-    return efi_clock_impl(X, Y, EXITLOOP);
+    return EFI_SUCCESS;
 }
 
 EFI_STATUS efi_clock_1(BOOLEAN EXITLOOP)
 {
-    if (!gClockPosSet) {
-        gClockX = gST->ConOut->Mode->CursorColumn;
-        gClockY = gST->ConOut->Mode->CursorRow;
-        gClockPosSet = TRUE;
-    }
-    return efi_clock_impl(gClockX, gClockY, EXITLOOP);
+    (void)EXITLOOP;
+    return efi_clock_impl(0, 0);
+}
+
+EFI_STATUS efi_clock_3(UINTN X, UINTN Y)
+{
+    return efi_clock_impl(X, Y);
 }
 
 EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
@@ -119,13 +111,18 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
     
     SystemTable->ConOut->ClearScreen(SystemTable->ConOut);
     
-    printf(L"Milestone Completion : %s\r\n", milestone);
-    printfc(EFICOLOR_LIGHTBLUE, L"[");
-    printfc(EFICOLOR_LIGHTGREEN, L"==========");
-    printfc(EFICOLOR_LIGHTBLUE, L"              ]\r\n");
+    printf(L"Hello, World!\r\n");
     printf(L"Neutron EFI App Had Loaded!\r\n");
-    print_branding_info();
+
+    printfc(
+        EFICOLOR_LIGHTGREEN,
+        L"Color Demo: %d, %x, %s\r\n",
+        123,
+        0xABC,
+        L"Success");
+
     printf(L"\r\n");
+
     printf(L" _   _            _                    \r\n");
     printf(L"| \\ | |          | |                   \r\n");
     printf(L"|  \\| | ___ _   _| |_ _ __ ___  _ __  \r\n");
@@ -146,18 +143,25 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
     CHAR16 cpu_buffer[49];
     get_cpu_name(cpu_buffer);
     printf(L"Collecting Hardware Information...\r\n");
+	/*
+	I GOT TIRED OF THIS SLOW AS FUCK BUILD THAT TAKES 12 TO 16 SECONDS
+	WHY
+	EDK2 IS SO FUCKING HEAVY
+	FUCK
+	FUCK FUCK FUCK
+	*/
 	printf(L"CPU Name: %s\r\n", cpu_buffer);
 	UINT64 ram_bytes = get_total_ram();
 	printf(L"Total RAM: %d MB\r\n", ram_bytes / (1024 * 1024));
-	efi_detect(SystemTable);
-    keyboard_input(cpu_buffer, sizeof(cpu_buffer) / sizeof(cpu_buffer[0]));
-
-    efi_clock(ClockX, ClockY, TRUE);
+    printf(L"Press CTRL+S to go to recovery mode.\r\n");
+	
+    efi_clock_3(ClockX, ClockY);
 
     // wait for the user to close this disgusting useless shitty efi app.
 	// that waste just your computer potential.
 	// idk may be useful
 	// but idk if it useful.
+    efi_waitkey(SystemTable);
 
     return EFI_SUCCESS;
 }

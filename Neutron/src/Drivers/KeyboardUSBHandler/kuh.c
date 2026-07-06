@@ -101,6 +101,11 @@ void efi_detect(EFI_SYSTEM_TABLE *SystemTable)
 
 static BOOLEAN gShellActive = FALSE;
 
+static BOOLEAN IsCtrlSKey(const EFI_INPUT_KEY *Key)
+{
+    return (Key->UnicodeChar == 0x13);
+}
+
 void keyboard_input(CHAR16 *Buffer, UINTN MaxLength) {
     UINTN Index = 0;
     EFI_INPUT_KEY Key;
@@ -118,11 +123,10 @@ void keyboard_input(CHAR16 *Buffer, UINTN MaxLength) {
             continue; 
         }
 
-        if (Key.UnicodeChar == 19 || Key.UnicodeChar == 0x13) {
+        if (IsCtrlSKey(&Key)) {
             if (!gShellActive) {
                 gShellActive = TRUE;
                 gST->ConOut->ClearScreen(gST->ConOut);
-                efi_clock(FALSE);
                 printfc(EFICOLOR_LIGHTRED, L"\r\nGoing into Recovery Shell....\r\n");
                 initshl();
                 gShellActive = FALSE;

@@ -55,7 +55,6 @@ Below is the list of environments supported by the application.
 
 To contribute to this project, you must follow these rules:
 
-- **Code Style**: Ensure your code follows the established style conventions.
 - **Pull Requests**: Submit all changes via Pull Requests (PRs). Ensure the PR description clearly explains the changes made.
 - **Issues**: Before starting a new feature, check if there is an existing issue. If not, open one to discuss the proposed changes.
 - **Testing**: Test your changes thoroughly on supported hardware/environments before submitting.

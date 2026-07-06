@@ -73,7 +73,9 @@ efi: all
 ucrt:
 	
 	qemu-system-x86_64 -m 1G -drive if=pflash,format=raw,readonly=on,file=C:\msys64\ucrt64\share\qemu\edk2-x86_64-code.fd -cdrom Neutron.iso -boot d
-uciso: clean efi
+uciso:
+	$(MAKE) clean
+	$(MAKE) efi
 	@echo ""
 	@echo ""
 	@echo ""
@@ -100,6 +102,8 @@ uciso: clean efi
 	$(MAKE) ucrt
 	
 
-re: clean efi
+re:
+	$(MAKE) clean
+	$(MAKE) efi
 
 .PHONY: all clean efi ucrt uciso re
