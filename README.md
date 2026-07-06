@@ -6,7 +6,7 @@ A EFI Application to Load your OS!
 
 # Compiling
 ## Requirement:
-- mtools
+- Mtools
 - mingw64
 - xorriso
 - qemu + ovmf
