@@ -10,7 +10,7 @@ extern EFI_SYSTEM_TABLE *gST;
 
 void efi_detect(EFI_SYSTEM_TABLE *SystemTable);
 void keyboard_input(CHAR16 *Buffer, UINTN MaxLength);
-void initshl(void);
+void initshl(EFI_SYSTEM_TABLE *SystemTable);
 int scanf(const CHAR16 *buf, const CHAR16 *fmt, ...);
 void sleep(int seconds);
 

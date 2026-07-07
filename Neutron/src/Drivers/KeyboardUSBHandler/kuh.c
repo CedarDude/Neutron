@@ -128,7 +128,7 @@ void keyboard_input(CHAR16 *Buffer, UINTN MaxLength) {
                 gShellActive = TRUE;
                 gST->ConOut->ClearScreen(gST->ConOut);
                 printfc(EFICOLOR_LIGHTRED, L"\r\nGoing into Recovery Shell....\r\n");
-                initshl();
+                initshl(gST);
                 gShellActive = FALSE;
                 return;
             }

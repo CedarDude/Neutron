@@ -18,6 +18,6 @@ Licensed under GPLv3 -- Early EFI Stage (Milestone 2)
 
 extern EFI_SYSTEM_TABLE *gST;
 
-void initshl(void);
+void initshl(EFI_SYSTEM_TABLE *SystemTable);
 
 #endif

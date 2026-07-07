@@ -2,6 +2,7 @@
 #include <neulib.h>
 #include <NLIB.h>
 #include <rshell.h>
+#include <fpi.h>
 /*
 Razzle (c) Neutron EFI
 ======
@@ -64,7 +65,7 @@ EFI_STATUS efi_clock_impl(UINTN X, UINTN Y)
             EFI_INPUT_KEY Key;
             gST->ConIn->ReadKeyStroke(gST->ConIn, &Key);
             if (IsCtrlSKey(&Key)) {
-                initshl();
+                initshl(gST);
             }
             break; 
         }
@@ -111,15 +112,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
     
     SystemTable->ConOut->ClearScreen(SystemTable->ConOut);
     
-    printf(L"Hello, World!\r\n");
-    printf(L"Neutron EFI App Had Loaded!\r\n");
-
-    printfc(
-        EFICOLOR_LIGHTGREEN,
-        L"Color Demo: %d, %x, %s\r\n",
-        123,
-        0xABC,
-        L"Success");
+    printf(L"Neutron Loader\r\n=======\r\n");
 
     printf(L"\r\n");
 
@@ -143,20 +136,57 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
     CHAR16 cpu_buffer[49];
     get_cpu_name(cpu_buffer);
     printf(L"Collecting Hardware Information...\r\n");
-	/*
-	I GOT TIRED OF THIS SLOW AS FUCK BUILD THAT TAKES 12 TO 16 SECONDS
-	WHY
-	EDK2 IS SO FUCKING HEAVY
-	FUCK
-	FUCK FUCK FUCK
-	*/
-	printf(L"CPU Name: %s\r\n", cpu_buffer);
-	UINT64 ram_bytes = get_total_ram();
-	printf(L"Total RAM: %d MB\r\n", ram_bytes / (1024 * 1024));
-    printf(L"Press CTRL+S to go to recovery mode.\r\n");
-	
-    efi_clock_3(ClockX, ClockY);
+    printf(L"CPU Name: %s\r\n", cpu_buffer);
+    UINT64 ram_bytes = get_total_ram();
+    printf(L"Total RAM: %d MB\r\n", ram_bytes / (1024 * 1024));
 
+    printf(L"Press CTRL+S to go to recovery mode.\r\n");
+
+    VOID *cool_buffer;
+    UINTN cool_size;
+    EFI_STATUS FileStatus;
+    
+    FileStatus = UseFile(
+        SystemTable,
+        L"\\EFI\\BOOT\\HELLO.TXT",
+        &cool_buffer,
+        &cool_size
+    );
+    
+    if (!EFI_ERROR(FileStatus))
+    {
+        printf(L"File contents:\r\n");
+    
+        UINT8 *raw = (UINT8 *)cool_buffer;
+    
+        UINTN offset = 0;
+    
+        if (cool_size >= 2 && raw[0] == (UINT8)0xFE && raw[1] == (UINT8)0xFF)
+        {
+            offset = 2;
+        }
+    
+        while (offset + 1 < cool_size)
+        {
+            CHAR16 character;
+        
+            character = ((CHAR16)raw[offset] << 8) |
+                        (CHAR16)raw[offset + 1];
+        
+            printf(L"%c", character);
+        
+            offset += 2;
+        }
+    
+        printf(L"\r\n");
+    
+        FreeFileMem(cool_buffer);
+    }
+    else
+    {
+        printf(L"File error: %r\r\n", FileStatus);
+    }
+    efi_clock_3(ClockX, ClockY);
     // wait for the user to close this disgusting useless shitty efi app.
 	// that waste just your computer potential.
 	// idk may be useful

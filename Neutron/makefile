@@ -22,6 +22,7 @@ INCLUDES := $(foreach dir,$(SRC_DIRS),-I$(dir)) \
             -Iedk2/MdePkg/Include/X64 \
             -Iedk2/MdePkg/Include/Library \
             -Iedk2/MdePkg/Include/Protocol \
+			-lMemoryAllocationLib \
             -Iedk2/MdePkg/Include/IndustryStandard
 
 CFLAGS += $(INCLUDES)
@@ -54,6 +55,7 @@ efi: all
 	@echo -e "\033[32mDo Not Open Another Razzle Window t'ill it finished!\033[0m"
 	mkdir -p build/iso/EFI/BOOT
 	cp build/Neutron.efi build/iso/EFI/BOOT/BOOTX64.EFI
+	cp src/hello.txt build/iso/EFI/BOOT/HELLO.TXT
 
 	dd if=/dev/zero of=build/esp.img bs=1M count=20
 	mkfs.vfat build/esp.img
@@ -61,6 +63,8 @@ efi: all
 	mmd -i build/esp.img ::/EFI
 	mmd -i build/esp.img ::/EFI/BOOT
 	mcopy -i build/esp.img build/Neutron.efi ::/EFI/BOOT/BOOTX64.EFI
+	mcopy -i build/esp.img src/hello.txt ::/EFI/BOOT/HELLO.TXT	
+	
 	@echo -e "\033[32mDo Not Open Another Razzle Window t'ill it finished!\033[0m"
 	xorriso -as mkisofs \
 	    -R \

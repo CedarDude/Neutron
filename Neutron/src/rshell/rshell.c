@@ -6,6 +6,7 @@
 #include <branding.h>
 #include <UefiBootServicesTableLib.h>
 #include <Protocol/PciIo.h>
+#include <fpi.h>
 #include <Pci.h>
 
 /*
@@ -143,7 +144,7 @@ void GetGPUInfo(void)
             GetVendorName(VendorId), VendorId, DeviceId);
 }
 
-void initshl(void)
+void initshl(EFI_SYSTEM_TABLE *SystemTable)
 {
     ClearScreen();
     print_branding_info();
@@ -182,6 +183,31 @@ void initshl(void)
         if (StrEqual(buffer, L"exit")) {
             printf(L"Exiting recovery shell...\r\n");
             break;
+        }
+
+        // DIR AREA
+
+        if (StrEqual(buffer, L"dir") || StrEqual(buffer, L"ls"))
+        {
+            static CHAR16 directory_data[2048];
+        
+            EFI_STATUS Status;
+        
+            Status = Dir(
+                SystemTable,
+                L"\\EFI\\BOOT",
+                directory_data,
+                2048
+            );
+        
+            if (!EFI_ERROR(Status))
+            {
+                printf(L"%s", directory_data);
+            }
+            else
+            {
+                printf(L"Directory error: %r\r\n", Status);
+            }
         }
 
         if (StrEqual(buffer, L"gpuinfo")) {
