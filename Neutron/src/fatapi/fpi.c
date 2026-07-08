@@ -1,7 +1,7 @@
 #include <Uefi.h>
 #include <SimpleFileSystem.h>
 #include <Guid/FileInfo.h>
-#define GET_FUCKED 1
+#include "fpi.h"
 
 /*
     FAT32 helper implementation for UEFI applications.
@@ -146,17 +146,12 @@ EFI_STATUS UseFile(
 // I AM GONNA SLAP MY MONITOR
 // I HATE HOW RANDOMLY YOUHAVE A MSSING SHIT!
 
-VOID FreeFileMem(
-    EFI_SYSTEM_TABLE *SystemTable,
-    VOID *Pointer
-)
+VOID FreeFileMem(VOID *Pointer)
 {
     if (Pointer != NULL)
     {
-        SystemTable->BootServices->FreePool(Pointer);
+        gST->BootServices->FreePool(Pointer);
     }
-
-    
 }
 
 

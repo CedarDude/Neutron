@@ -37,7 +37,8 @@ $(TARGET): $(OBJ)
 	$(CC) -nostdlib \
 	      -Wl,--subsystem,10 \
 	      -Wl,--entry,efi_main \
-	      -o $@ $^
+	      -o $@ $^ \
+	      -lgcc
 
 $(BUILD_PATH)/%.o: %.c
 	mkdir -p $(BUILD_PATH)
@@ -55,7 +56,7 @@ efi: all
 	@echo -e "\033[32mDo Not Open Another Razzle Window t'ill it finished!\033[0m"
 	mkdir -p build/iso/EFI/BOOT
 	cp build/Neutron.efi build/iso/EFI/BOOT/BOOTX64.EFI
-	cp src/hello.txt build/iso/EFI/BOOT/HELLO.TXT
+	cp src/loader.cfg build/iso/EFI/BOOT/LOADER.CFG
 
 	dd if=/dev/zero of=build/esp.img bs=1M count=20
 	mkfs.vfat build/esp.img
@@ -63,7 +64,7 @@ efi: all
 	mmd -i build/esp.img ::/EFI
 	mmd -i build/esp.img ::/EFI/BOOT
 	mcopy -i build/esp.img build/Neutron.efi ::/EFI/BOOT/BOOTX64.EFI
-	mcopy -i build/esp.img src/hello.txt ::/EFI/BOOT/HELLO.TXT	
+	mcopy -i build/esp.img src/loader.cfg ::/EFI/BOOT/LOADER.CFG	
 	
 	@echo -e "\033[32mDo Not Open Another Razzle Window t'ill it finished!\033[0m"
 	xorriso -as mkisofs \
