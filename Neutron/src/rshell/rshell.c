@@ -34,6 +34,17 @@ static BOOLEAN StrEqual(const CHAR16 *A, const CHAR16 *B)
     return *A == *B;
 }
 
+static BOOLEAN StrStartsWith(const CHAR16 *Str, const CHAR16 *Prefix)
+{
+    while (*Prefix) {
+        if (*Str != *Prefix)
+            return FALSE;
+        Str++;
+        Prefix++;
+    }
+    return TRUE;
+}
+
 static void PrintShellPrompt(void)
 {
     printfc(EFICOLOR_YELLOW, L"EFI/BOOT/> ");
@@ -139,7 +150,7 @@ void GetGPUInfo(void)
         return;
     }
 
-    // Print out the extracted hex IDs along with the resolved vendor string
+    // Print out the extracted hex IDs along with the resolved vendor string so we can fuck it xD
     printfc(EFICOLOR_LIGHTCYAN, L"GPU Information: %s (VID: 0x%04X, DID: 0x%04X)\r\n", 
             GetVendorName(VendorId), VendorId, DeviceId);
 }
@@ -148,7 +159,7 @@ void initshl(EFI_SYSTEM_TABLE *SystemTable)
 {
     ClearScreen();
     print_branding_info();
-    printf(L"Type 'help' for commands, 'exit' to leave shell.\r\nRemember, the UEFI give you QWERTY, as it not my fault, blame them.\r\n");
+    printf(L"Recovery Screen -- NeutronREC\r\n==============\r\n");
 
     CHAR16 buffer[256];
     while (TRUE) {
@@ -216,6 +227,17 @@ void initshl(EFI_SYSTEM_TABLE *SystemTable)
             continue;
         }
         
+        if (StrEqual(buffer, L"cls")) {
+            gST->ConOut->ClearScreen(gST->ConOut);
+            continue;
+        }
+
+
+        if (StrStartsWith(buffer, L"echo ")) {
+            printf(L"%s\r\n", buffer + 5);
+            continue;
+        }
+
         printfc(EFICOLOR_RED, L"Unknown command: %s\r\n", buffer);
     }
 }
