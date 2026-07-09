@@ -23,16 +23,34 @@ static BOOLEAN StringContains(const UINT8 *Buffer, UINTN Len, const char *Keywor
     return FALSE;
 }
 
-static VOID CopyField(const UINT8 *Raw, UINTN LineStart, UINTN LineLen, CHAR16 *Dest, UINTN DestMax)
+static VOID ExtractQuotedValue(const UINT8 *Raw, UINTN LineStart, UINTN LineLen, CHAR16 *Dest, UINTN DestMax)
 {
-    UINTN DestIdx = 0;
-    for (UINTN i = 0; i < LineLen && DestIdx < DestMax - 1; i++) {
-        UINT8 Byte = Raw[LineStart + i];
-        if (Byte >= 32 && Byte < 127) {
-            Dest[DestIdx++] = (CHAR16)Byte;
+    UINTN FirstQuote = 0;
+    UINTN SecondQuote = 0;
+    
+    for (UINTN i = 0; i < LineLen; i++) {
+        if (Raw[LineStart + i] == '"') {
+            if (FirstQuote == 0) {
+                FirstQuote = i + 1;
+            } else {
+                SecondQuote = i;
+                break;
+            }
         }
     }
-    Dest[DestIdx] = L'\0';
+    
+    if (FirstQuote > 0 && SecondQuote > FirstQuote) {
+        UINTN CopyLen = SecondQuote - FirstQuote;
+        if (CopyLen >= DestMax) {
+            CopyLen = DestMax - 1;
+        }
+        for (UINTN i = 0; i < CopyLen; i++) {
+            Dest[i] = (CHAR16)Raw[LineStart + FirstQuote + i];
+        }
+        Dest[CopyLen] = L'\0';
+    } else {
+        Dest[0] = L'\0';
+    }
 }
 
 EFI_STATUS ParseLoaderConfig(EFI_SYSTEM_TABLE *SystemTable, 
@@ -65,7 +83,6 @@ EFI_STATUS ParseLoaderConfig(EFI_SYSTEM_TABLE *SystemTable,
     UINTN LineStart = 0;
     UINTN EntryIndex = 0;
     BOOLEAN InEntry = FALSE;
-    UINTN CurrentField = 0;
     
     for (UINTN i = 0; i <= FileSize; i++) {
         BOOLEAN IsLineEnd = (i == FileSize || Raw[i] == '\n');
@@ -77,37 +94,30 @@ EFI_STATUS ParseLoaderConfig(EFI_SYSTEM_TABLE *SystemTable,
             }
             
             if (LineLen > 0) {
-                if (StringContains(&Raw[LineStart], LineLen, "menuentry") && !InEntry) {
-                    InEntry = TRUE;
-                    CurrentField = 1;
-                    if (EntryIndex < MAX_MENU_ENTRIES) {
-                        CopyField(Raw, LineStart, LineLen, Config->entries[EntryIndex].name, MAX_ENTRY_NAME);
+                if (!InEntry) {
+                    if (StringContains(&Raw[LineStart], LineLen, "menuentry")) {
+                        if (EntryIndex < MAX_MENU_ENTRIES) {
+                            ExtractQuotedValue(Raw, LineStart, LineLen, Config->entries[EntryIndex].name, MAX_ENTRY_NAME);
+                        }
+                        InEntry = TRUE;
                     }
-                } else if (InEntry) {
-                    if (StringContains(&Raw[LineStart], LineLen, "about=")) {
-                        CurrentField = 2;
-                        if (EntryIndex < MAX_MENU_ENTRIES) {
-                            CopyField(Raw, LineStart, LineLen, Config->entries[EntryIndex].about, MAX_ENTRY_ABOUT);
-                        }
-                    } else if (StringContains(&Raw[LineStart], LineLen, "version=")) {
-                        CurrentField = 3;
-                        if (EntryIndex < MAX_MENU_ENTRIES) {
-                            CopyField(Raw, LineStart, LineLen, Config->entries[EntryIndex].version, MAX_ENTRY_VERSION);
-                        }
-                    } else if (StringContains(&Raw[LineStart], LineLen, "type=")) {
-                        CurrentField = 4;
-                        if (EntryIndex < MAX_MENU_ENTRIES) {
-                            CopyField(Raw, LineStart, LineLen, Config->entries[EntryIndex].type, MAX_ENTRY_TYPE);
-                        }
-                    } else if (StringContains(&Raw[LineStart], LineLen, "}")) {
+                } else {
+                    if (StringContains(&Raw[LineStart], LineLen, "}")) {
                         InEntry = FALSE;
-                        CurrentField = 0;
-                        Config->count = EntryIndex + 1;
                         EntryIndex++;
+                    } else if (EntryIndex < MAX_MENU_ENTRIES) {
+                        if (StringContains(&Raw[LineStart], LineLen, "about=")) {
+                            ExtractQuotedValue(Raw, LineStart, LineLen, Config->entries[EntryIndex].about, MAX_ENTRY_ABOUT);
+                        } else if (StringContains(&Raw[LineStart], LineLen, "version=")) {
+                            ExtractQuotedValue(Raw, LineStart, LineLen, Config->entries[EntryIndex].version, MAX_ENTRY_VERSION);
+                        } else if (StringContains(&Raw[LineStart], LineLen, "type=")) {
+                            ExtractQuotedValue(Raw, LineStart, LineLen, Config->entries[EntryIndex].type, MAX_ENTRY_TYPE);
+                        }
                     }
                 }
             }
             
+            Config->count = EntryIndex;
             LineStart = i + 1;
         }
     }

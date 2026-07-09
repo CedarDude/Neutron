@@ -24,71 +24,64 @@ EFI_STATUS InitUI(EFI_SYSTEM_TABLE *SystemTable)
     return EFI_SUCCESS;
 }
 
-static UINTN GetConsoleWidth(EFI_SYSTEM_TABLE *SystemTable)
+static VOID GetConsoleMetrics(EFI_SYSTEM_TABLE *SystemTable, UINTN *OutWidth, UINTN *OutHeight)
 {
-    if (SystemTable == NULL || SystemTable->ConOut == NULL) {
-        return 80;
-    }
-    
-    UINTN Columns = 80;
+    INT32 CurrentMode = 0;
+    UINTN Cols = 80;
     UINTN Rows = 25;
-    EFI_STATUS Status = SystemTable->ConOut->QueryMode(SystemTable->ConOut, 0, &Columns, &Rows);
-    if (!EFI_ERROR(Status)) {
-        return Columns;
+    
+    if (SystemTable != NULL && SystemTable->ConOut != NULL && SystemTable->ConOut->Mode != NULL) {
+        CurrentMode = SystemTable->ConOut->Mode->Mode;
+        EFI_STATUS Status = SystemTable->ConOut->QueryMode(SystemTable->ConOut, (UINTN)CurrentMode, &Cols, &Rows);
+        if (EFI_ERROR(Status)) {
+            Status = SystemTable->ConOut->QueryMode(SystemTable->ConOut, 0, &Cols, &Rows);
+            if (EFI_ERROR(Status)) {
+                Cols = 80;
+                Rows = 25;
+            }
+        }
     }
     
-    return 80;
+    *OutWidth = Cols;
+    *OutHeight = Rows;
 }
 
-static UINTN GetConsoleHeight(EFI_SYSTEM_TABLE *SystemTable)
+static UINTN StringLength(const CHAR16 *Str)
 {
-    if (SystemTable == NULL || SystemTable->ConOut == NULL) {
-        return 25;
-    }
-    
-    UINTN Columns = 80;
-    UINTN Rows = 25;
-    EFI_STATUS Status = SystemTable->ConOut->QueryMode(SystemTable->ConOut, 0, &Columns, &Rows);
-    if (!EFI_ERROR(Status)) {
-        return Rows;
-    }
-    
-    return 25;
+    UINTN Len = 0;
+    while (Str[Len] != L'\0') Len++;
+    return Len;
 }
 
-VOID DrawBox(EFI_SYSTEM_TABLE *SystemTable, UINTN X, UINTN Y, UINTN Width, UINTN Height)
+static VOID WriteCentered(EFI_SYSTEM_TABLE *SystemTable, UINTN Row, const CHAR16 *Text)
 {
-    if (Width < 2 || Height < 2) {
-        return;
+    UINTN Width = 0;
+    UINTN Height = 0;
+    GetConsoleMetrics(SystemTable, &Width, &Height);
+    
+    UINTN TextLen = StringLength(Text);
+    UINTN Col = (Width - TextLen) / 2;
+    if (Col > Width) {
+        Col = 0;
     }
     
-    UINTN BottomY = Y + Height - 1;
-    UINTN RightX = X + Width - 1;
-    
-    SystemTable->ConOut->SetCursorPosition(SystemTable->ConOut, X, Y);
-    printf(L"+");
-    SystemTable->ConOut->SetCursorPosition(SystemTable->ConOut, RightX, Y);
-    printf(L"+");
-    SystemTable->ConOut->SetCursorPosition(SystemTable->ConOut, X, BottomY);
-    printf(L"+");
-    SystemTable->ConOut->SetCursorPosition(SystemTable->ConOut, RightX, BottomY);
-    printf(L"+");
-    
-    for (UINTN i = X + 1; i < RightX; i++) {
-        SystemTable->ConOut->SetCursorPosition(SystemTable->ConOut, i, Y);
-        printf(L"-");
-        SystemTable->ConOut->SetCursorPosition(SystemTable->ConOut, i, BottomY);
-        printf(L"-");
-    }
-    
-    for (UINTN i = Y + 1; i < BottomY; i++) {
-        SystemTable->ConOut->SetCursorPosition(SystemTable->ConOut, X, i);
-        printf(L"|");
-        SystemTable->ConOut->SetCursorPosition(SystemTable->ConOut, RightX, i);
-        printf(L"|");
-    }
+    SystemTable->ConOut->SetCursorPosition(SystemTable->ConOut, Col, Row);
+    printf(L"%s", Text);
 }
 
+static VOID ClearRow(EFI_SYSTEM_TABLE *SystemTable, UINTN Row)
+{
+    UINTN Width = 0;
+    UINTN Height = 0;
+    GetConsoleMetrics(SystemTable, &Width, &Height);
+    
+    SystemTable->ConOut->SetCursorPosition(SystemTable->ConOut, 0, Row);
+    for (UINTN i = 0; i < Width; i++) {
+        printf(L" ");
+    }
+}
+// THIS TOOK A LOT OF TIME FOR THIS.... AGHHH
+// IT WORTH EVERY SECOND!
 VOID RenderMenu(EFI_SYSTEM_TABLE *SystemTable, 
                 MenuConfig *Config, 
                 UINTN SelectedIndex,
@@ -97,126 +90,87 @@ VOID RenderMenu(EFI_SYSTEM_TABLE *SystemTable,
     (void)ScrollOffset;
     
     if (!Config || Config->count == 0) {
-        printfc(EFICOLOR_LIGHTRED, L"No menu entries found!\r\n");
+        printf(L"No menu entries found!\r\n");
         return;
     }
     
-    UINTN ConsoleWidth = GetConsoleWidth(SystemTable);
-    UINTN ConsoleHeight = GetConsoleHeight(SystemTable);
-    
-    UINTN BoxWidth = ConsoleWidth > 70 ? 70 : (ConsoleWidth > 40 ? ConsoleWidth - 2 : 38);
-    if (BoxWidth > 70) BoxWidth = 70;
-    if (BoxWidth < 20) BoxWidth = 20;
-    
-    UINTN MenuHeight = Config->count + 2;
-    if (MenuHeight < 6) MenuHeight = 6;
-    if (MenuHeight + 7 > ConsoleHeight) {
-        MenuHeight = ConsoleHeight - 7;
-    }
-    if (MenuHeight < 6) MenuHeight = 6;
-    
-    UINTN InfoHeight = 5;
-    if (InfoHeight < 3) InfoHeight = 3;
-    
-    UINTN TotalHeight = MenuHeight + InfoHeight;
-    if (TotalHeight + 2 > ConsoleHeight) {
-        TotalHeight = ConsoleHeight - 2;
-        InfoHeight = TotalHeight < MenuHeight ? 3 : (TotalHeight - MenuHeight);
-        if (InfoHeight > 5) InfoHeight = 5;
-        if (InfoHeight < 3) InfoHeight = 3;
-        MenuHeight = TotalHeight - InfoHeight;
-        if (MenuHeight < 6) MenuHeight = 6;
-    }
-    
-    UINTN BoxX = (ConsoleWidth - BoxWidth) / 2;
-    UINTN BoxY = (ConsoleHeight - TotalHeight) / 2;
-    if (BoxY < 1) BoxY = 1;
-    if (BoxY + TotalHeight > ConsoleHeight - 1) {
-        BoxY = ConsoleHeight - 1 - TotalHeight;
-    }
-    
-    UINTN MenuY = BoxY;
-    UINTN InfoY = MenuY + MenuHeight;
-    
-    UINTN RightX = BoxX + BoxWidth - 1;
+    UINTN Width = 0;
+    UINTN Height = 0;
+    GetConsoleMetrics(SystemTable, &Width, &Height);
     
     SystemTable->ConOut->ClearScreen(SystemTable->ConOut);
     
-    SystemTable->ConOut->SetCursorPosition(SystemTable->ConOut, 0, 0);
-    printfc(EFICOLOR_LIGHTBLUE, L"Please Choose Your Operating System To Load, By using ");
-    printfc(EFICOLOR_WHITE, L"<");
-    printfc(EFICOLOR_LIGHTBLUE, L" or ");
-    printfc(EFICOLOR_WHITE, L">");
-    printfc(EFICOLOR_LIGHTBLUE, L". If You Have Boot Problems Here, Please Press ");
-    printfc(EFICOLOR_WHITE, L"CTRL + S");
-    printfc(EFICOLOR_LIGHTBLUE, L" To Open The Recovery Shell.\r\n");
+    SystemTable->ConOut->SetAttribute(SystemTable->ConOut, EFICOLOR_LIGHTBLUE);
+    ClearRow(SystemTable, 0);
+    WriteCentered(SystemTable, 0, L"Neutron Boot Manager");
     
-    DrawBox(SystemTable, BoxX, MenuY, BoxWidth, MenuHeight);
+    SystemTable->ConOut->SetAttribute(SystemTable->ConOut, EFICOLOR_LIGHTGRAY);
+    ClearRow(SystemTable, 2);
+    WriteCentered(SystemTable, 2, L"Please choose the operating system to start:");
     
-    UINTN MenuStartY = MenuY + 1;
-    UINTN MaxEntries = MenuHeight - 2;
-    if (MaxEntries == 0) MaxEntries = 1;
-    if (SelectedIndex >= MaxEntries) {
-        ScrollOffset = SelectedIndex - MaxEntries + 1;
-    }
+    UINTN CenterY = Height / 2;
+    if (CenterY < 6) CenterY = 6;
+    if (CenterY > Height - 10) CenterY = Height - 10;
     
-    for (UINTN i = 0; i < Config->count; i++) {
-        if (i < ScrollOffset) {
-            continue;
-        }
+    INTN StartIdx = (INTN)SelectedIndex;
+    if (StartIdx > (INTN)(SelectedIndex - 2)) StartIdx = (INTN)(SelectedIndex - 2);
+    if (StartIdx < 0) StartIdx = 0;
+    
+    INTN EndIdx = (INTN)SelectedIndex + 3;
+    if (EndIdx > (INTN)Config->count) EndIdx = (INTN)Config->count;
+    
+    UINTN VisualIndex = 0;
+    for (INTN i = StartIdx; i < EndIdx; i++) {
+        UINTN Row = CenterY - 2 + VisualIndex;
+        if (Row >= Height - 6) break;
         
-        UINTN DisplayIndex = i - ScrollOffset;
-        if (DisplayIndex >= MaxEntries) {
-            break;
-        }
+        ClearRow(SystemTable, Row);
         
-        UINTN RowY = MenuStartY + DisplayIndex;
-        if (RowY >= MenuY + MenuHeight - 1) {
-            break;
-        }
-        
-        SystemTable->ConOut->SetCursorPosition(SystemTable->ConOut, BoxX + 2, RowY);
-        
-        if (i == SelectedIndex) {
-            printfc(EFICOLOR_LIGHTGREEN, L"%s", Config->entries[i].name);
-            if (RightX - 6 >= BoxX + 2) {
-                SystemTable->ConOut->SetCursorPosition(SystemTable->ConOut, RightX - 6, RowY);
-                printfc(EFICOLOR_YELLOW, L"|<<<");
-            }
+        if ((UINTN)i == SelectedIndex) {
+            UINTN ArrowLen = 4;
+            UINTN NameLen = StringLength(Config->entries[i].name);
+            UINTN TotalLen = ArrowLen + NameLen;
+            UINTN Col = (Width - TotalLen) / 2;
+            if (Col > Width) Col = 0;
+            
+            SystemTable->ConOut->SetCursorPosition(SystemTable->ConOut, Col, Row);
+            printfc(EFICOLOR_LIGHTGREEN, L">> ");
+            printfc(EFICOLOR_YELLOW, L"%s", Config->entries[i].name);
+            printfc(EFICOLOR_YELLOW, L" <<");
         } else {
+            UINTN NameLen = StringLength(Config->entries[i].name);
+            UINTN Col = (Width - NameLen) / 2;
+            if (Col > Width) Col = 0;
+            
+            SystemTable->ConOut->SetCursorPosition(SystemTable->ConOut, Col, Row);
             printf(L"%s", Config->entries[i].name);
-            SystemTable->ConOut->SetCursorPosition(SystemTable->ConOut, RightX - 1, RowY);
-            printf(L"|");
         }
         
-        SystemTable->ConOut->SetCursorPosition(SystemTable->ConOut, BoxX + 1, RowY);
-        printf(L"* ");
+        VisualIndex++;
     }
     
-    DrawBox(SystemTable, BoxX, InfoY, BoxWidth, InfoHeight);
-    
-    SystemTable->ConOut->SetCursorPosition(SystemTable->ConOut, BoxX + 2, InfoY + 1);
-    printfc(EFICOLOR_LIGHTBLUE, L"Name: ");
     if (SelectedIndex < Config->count) {
-        printfc(EFICOLOR_WHITE, L"%s", Config->entries[SelectedIndex].name);
-    }
-    
-    SystemTable->ConOut->SetCursorPosition(SystemTable->ConOut, BoxX + 2, InfoY + 2);
-    printfc(EFICOLOR_LIGHTBLUE, L"About: ");
-    if (SelectedIndex < Config->count) {
-        printfc(EFICOLOR_WHITE, L"%s", Config->entries[SelectedIndex].about);
-    }
-    
-    SystemTable->ConOut->SetCursorPosition(SystemTable->ConOut, BoxX + 2, InfoY + 3);
-    printfc(EFICOLOR_LIGHTBLUE, L"Version: ");
-    if (SelectedIndex < Config->count) {
-        printfc(EFICOLOR_WHITE, L"%s", Config->entries[SelectedIndex].version);
-    }
-    
-    SystemTable->ConOut->SetCursorPosition(SystemTable->ConOut, BoxX + 2, InfoY + 4);
-    printfc(EFICOLOR_LIGHTBLUE, L"Type: ");
-    if (SelectedIndex < Config->count) {
-        printfc(EFICOLOR_WHITE, L"%s", Config->entries[SelectedIndex].type);
+        UINTN InfoRow = Height - 4;
+        if (InfoRow < CenterY + 3) InfoRow = CenterY + 3;
+        if (InfoRow + 1 >= Height) InfoRow = Height - 2;
+        
+        SystemTable->ConOut->SetAttribute(SystemTable->ConOut, EFICOLOR_DARKGRAY);
+        ClearRow(SystemTable, InfoRow);
+        WriteCentered(SystemTable, InfoRow, L"");
+        
+        printfc(EFICOLOR_DARKGRAY, L"Name: ");
+        printf(L"%s  ", Config->entries[SelectedIndex].name);
+        // if you triple fault at me again i will find you and beat you until you are dead
+        printfc(EFICOLOR_DARKGRAY, L"About: ");
+        printf(L"%s", Config->entries[SelectedIndex].about);
+        
+        ClearRow(SystemTable, InfoRow + 1);
+        WriteCentered(SystemTable, InfoRow + 1, L"");
+        
+        printfc(EFICOLOR_DARKGRAY, L"Version: ");
+        printf(L"%s  ", Config->entries[SelectedIndex].version);
+        printfc(EFICOLOR_DARKGRAY, L"Type: ");
+        printf(L"%s", Config->entries[SelectedIndex].type);
     }
     
     SystemTable->ConOut->SetAttribute(SystemTable->ConOut, EFICOLOR_LIGHTGRAY);
@@ -236,13 +190,12 @@ INT32 DisplayMenu(EFI_SYSTEM_TABLE *SystemTable, MenuConfig *Config)
     EFI_STATUS Status;
     EFI_INPUT_KEY Key;
     UINTN SelectedIndex = 0;
-    UINTN ScrollOffset = 0;
     BOOLEAN Exit = FALSE;
     
     InitUI(SystemTable);
     
     while (!Exit) {
-        RenderMenu(SystemTable, Config, SelectedIndex, ScrollOffset);
+        RenderMenu(SystemTable, Config, SelectedIndex, 0);
         
         UINTN Index;
         Status = SystemTable->BootServices->WaitForEvent(
@@ -266,24 +219,10 @@ INT32 DisplayMenu(EFI_SYSTEM_TABLE *SystemTable, MenuConfig *Config)
         if (Key.ScanCode == SCAN_UP) {
             if (SelectedIndex > 0) {
                 SelectedIndex--;
-                UINTN MaxEntries = GetConsoleHeight(SystemTable) - 7;
-                if (MaxEntries == 0) {
-                    MaxEntries = 1;
-                }
-                if (SelectedIndex < ScrollOffset) {
-                    ScrollOffset = SelectedIndex;
-                }
             }
         } else if (Key.ScanCode == SCAN_DOWN) {
             if (SelectedIndex < Config->count - 1) {
                 SelectedIndex++;
-                UINTN MaxEntries = GetConsoleHeight(SystemTable) - 7;
-                if (MaxEntries == 0) {
-                    MaxEntries = 1;
-                }
-                if (SelectedIndex >= ScrollOffset + MaxEntries) {
-                    ScrollOffset = SelectedIndex - MaxEntries + 1;
-                }
             }
         } else if (Key.UnicodeChar == CHAR_CARRIAGE_RETURN) {
             Exit = TRUE;
@@ -297,3 +236,4 @@ VOID CleanupUI(VOID)
 {
     gUIState.IsInitialized = FALSE;
 }
+// kelin dat ting
