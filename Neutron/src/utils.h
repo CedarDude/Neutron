@@ -2,6 +2,8 @@
 #define UTILS_H
 
 #include <Uefi.h>
+// I will try documenting these, as its get a bit confusing...
+
 
 /**
  * Display a clock at the given position
